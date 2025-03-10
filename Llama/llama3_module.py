@@ -75,7 +75,7 @@ def get_tokenizer(path):
     return tokenizer
 
 
-def generate(prompt, model_path="Meta-Llama-3-8B/"):
+def Llama3(prompt, model_path="Meta-Llama-3-8B/"):
     model = torch.load(model_path + "consolidated.00.pth")
     tokenizer = get_tokenizer("tokenizer.model")
     tokens = [12800] + tokenizer.encode(prompt)
@@ -121,3 +121,9 @@ def generate(prompt, model_path="Meta-Llama-3-8B/"):
     logits = torch.matmal(output[-1], output_w)
     next_token = torch.argmax(logits)
     return tokenizer.decode(next_token)
+
+
+def generate(prompt, n_tok_generate):
+    for _ in range(n_tok_generate):
+        prompt += Llama3(prompt)
+    return prompt
