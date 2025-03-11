@@ -2,6 +2,8 @@ import torch
 from torch import nn, Tensor
 import math
 import numpy as np
+from dataclasses import asdict
+from config import ModelArugment
 
 
 class PositionalEncoding(nn.Module):
