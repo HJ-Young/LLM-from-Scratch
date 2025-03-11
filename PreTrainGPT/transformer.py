@@ -1,5 +1,5 @@
 import torch
-from torch import nn
+from torch import nn, Tensor
 import math
 import numpy as np
 
@@ -25,12 +25,12 @@ class PositionalEncoding(nn.Module):
 
 
 class MHA(nn.Module):
-    def __init__(self, n_embed, n_hiddens, n_heads, dropout, **kwargs):
+    def __init__(self, n_hiddens, n_heads, dropout, **kwargs):
         super(MHA, self).__init__(**kwargs)
         self.n_heads = n_heads
-        self.w_q = nn.Linear(n_embed, n_hiddens)
-        self.w_k = nn.Linear(n_embed, n_hiddens)
-        self.w_v = nn.Linear(n_embed, n_hiddens)
+        self.w_q = nn.Linear(n_hiddens, n_hiddens)
+        self.w_k = nn.Linear(n_hiddens, n_hiddens)
+        self.w_v = nn.Linear(n_hiddens, n_hiddens)
         self.w_o = nn.Linear(n_hiddens, n_hiddens)
         self.dropout = nn.Dropout(p=dropout)
 
@@ -68,10 +68,10 @@ class MHA(nn.Module):
 
 
 class LayerNorm(nn.Module):
-    def __init__(self, gamma, beta, eps=1e-9):
+    def __init__(self, features, eps=1e-9):
         super(LayerNorm, self).__init__()
-        self.gamma = gamma
-        self.beta = beta
+        self.gamma = nn.Parameter(torch.ones(features))
+        self.beta = nn.Parameter(torch.ones(features))
         self.eps = eps
 
     def forward(self, X):
@@ -88,4 +88,205 @@ class PositionWiseFFN(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, X):
-        return self.ffn2(nn.functional.softmax(self.dropout(self.ffn1(X))))
+        return self.ffn2(self.dropout(nn.functional.relu(self.ffn1(X))))
+
+
+class EncoderBlock(nn.Module):
+    def __init__(self, n_hiddens, n_heads, ffn_n_hiddens, dropout, pre_ln=False):
+        self.attn = MHA(n_hiddens, n_heads, dropout)
+        self.attn_ln = LayerNorm(n_hiddens)
+
+        self.ffn = PositionWiseFFN(n_hiddens, ffn_n_hiddens, dropout)
+        self.ffn_ln = LayerNorm(n_hiddens)
+
+        self.pre_ln = pre_ln
+        self.dropout1 = nn.Dropout(p=dropout)
+        self.dropout2 = nn.Dropout(p=dropout)
+
+    def forward(self, X, mask=None, keep_attention=False):
+        if self.pre_ln:
+            X = X + self.dropout1(self.attn(self.attn_ln(X), self.attn_ln(X), self.attn_ln(X), mask, keep_attention))
+            X = X + self.dropout2(self.ffn(self.ffn_ln(X)))
+        else:
+            X = self.attn_ln(X + self.dropout2(self.attn(X, X, X, mask, keep_attention)))
+            X = self.ffn_ln(X + self.dropout2(self.ffn(X)))
+        return X
+
+
+class Encoder(nn.Module):
+    def __init__(self, n_hiddens, n_heads, ffn_n_hiddens, n_layers, dropout, pre_ln=False):
+        super(Encoder, self).__init__()
+        self.blks = nn.Sequential()
+        for layer in range(n_layers):
+            self.blks.add_module(
+                f"Encoder Block {layer}", EncoderBlock(n_hiddens, n_heads, ffn_n_hiddens, dropout, pre_ln)
+            )
+
+        self.ln = LayerNorm(n_hiddens)
+
+    def forward(self, X, mask, keep_attention=False):
+        for blk in self.blks:
+            X = blk(X, mask, keep_attention)
+
+        return self.ln(X)
+
+
+def make_mask(src, pad_idx: int = 0):
+    src_mask = (src != pad_idx).unsqueeze(1).unsqueeze(2)
+    return src_mask
+
+
+class DecoderBlock(nn.Module):
+    def __init__(self, n_hiddens, n_heads, ffn_n_hiddens, n_layers, dropout, pre_ln=False):
+        self.masked_attn = MHA(n_hiddens, n_heads, dropout)
+        self.masked_attn_ln = LayerNorm(n_hiddens)
+
+        self.attn = MHA(n_hiddens, n_heads, dropout)
+        self.attn_ln = LayerNorm(n_hiddens)
+
+        self.ffn = PositionWiseFFN(n_hiddens, ffn_n_hiddens, dropout)
+        self.ffn_ln = LayerNorm(n_hiddens)
+
+        self.pre_ln = pre_ln
+        self.dropout1 = nn.Dropout(p=dropout)
+        self.dropout2 = nn.Dropout(p=dropout)
+        self.dropout3 = nn.Dropout(p=dropout)
+
+    def forward(self, X, enc_output, mask, enc_mask, keep_attention):
+        if self.pre_ln:
+            X = X + self.masked_attn_ln(self.dropout1(self.masked_attn(X, X, X, mask, keep_attention)))
+            X = X + self.attn_ln(self.dropout2(self.attn(X, enc_output, enc_output, mask, keep_attention)))
+            X = X + self.ffn_ln(self.dropout3(self.ffn(X)))
+        else:
+            X = self.masked_attn_ln(X + self.dropout1(self.masked_attn(X, X, X, mask, keep_attention)))
+            X = self.attn_ln(X + self.dropout2(self.attn(X, enc_output, enc_output, mask, keep_attention)))
+            X = self.ffn_ln(X + self.dropout3(self.ffn(X)))
+        return X
+
+
+class Decoder(nn.Module):
+    def __init__(self, n_hiddens, n_heads, ffn_n_hiddens, n_layers, dropout, pre_ln=False):
+        super(Decoder, self).__init__()
+        self.blks = nn.Sequential()
+        for layer in range(n_layers):
+            self.blks.add_module(
+                f"Dncoder Block {layer}", DecoderBlock(n_hiddens, n_heads, ffn_n_hiddens, dropout, pre_ln)
+            )
+
+        self.ln = LayerNorm(n_hiddens)
+
+    def forward(self, X, enc_output, mask, enc_mask, keep_attention=False):
+        for blk in self.blks:
+            X = blk(X, enc_output, mask, enc_mask, keep_attention)
+
+        return self.ln(X)
+
+
+def make_tgt_mask(tgt, pad_idx: int = 0):
+    seq_len = tgt.size()[-1]
+    tgt_mask = (tgt != pad_idx).unsqueeze(1).unsqueeze(2)
+    subseq_mask = torch.tril(torch.ones((seq_len, seq_len))).bool()
+
+    tgt_mask = tgt_mask & subseq_mask
+
+    return tgt_mask
+
+
+class Transformer(nn.Module):
+    def __init__(
+        self,
+        source_vocab_size: int,
+        target_vocab_size: int,
+        d_model: int = 512,
+        n_heads: int = 8,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        d_ff: int = 2048,
+        dropout: float = 0.1,
+        max_positions: int = 5000,
+        pad_idx: int = 0,
+        norm_first: bool = False,
+    ) -> None:
+        super().__init__()
+        self.src_embedding = nn.Embedding(source_vocab_size, d_model)
+        self.tgt_embedding = nn.Embedding(target_vocab_size, d_model)
+
+        self.enc_pos = PositionalEncoding(d_model, dropout, max_positions)
+        self.dec_pos = PositionalEncoding(d_model, dropout, max_positions)
+
+        self.encoder = Encoder(d_model, num_encoder_layers, n_heads, d_ff, dropout, norm_first)
+        self.decoder = Decoder(d_model, num_decoder_layers, n_heads, d_ff, dropout, norm_first)
+
+        self.pad_idx = pad_idx
+
+    def encode(self, src: Tensor, src_mask: Tensor = None, keep_attentions: bool = False) -> Tensor:
+        src_embed = self.enc_pos(self.src_embedding(src))
+        return self.encoder(src_embed, src_mask, keep_attentions)
+
+    def decode(
+        self,
+        tgt: Tensor,
+        memory: Tensor,
+        tgt_mask: Tensor = None,
+        memory_mask: Tensor = None,
+        keep_attentions: bool = False,
+    ):
+
+        # tgt_embed (batch_size, tgt_seq_length, d_model)
+        tgt_embed = self.dec_pos(self.tgt_embedding(tgt))
+        # logits (batch_size, tgt_seq_length, d_model)
+        logits = self.decoder(tgt_embed, memory, tgt_mask, memory_mask, keep_attentions)
+
+        return logits
+
+    def forward(
+        self,
+        src,
+        tgt,
+        src_mask=None,
+        tgt_mask=None,
+        keep_attentions: bool = False,
+    ):
+        memory = self.encode(src, src_mask, keep_attentions)
+        return self.decode(tgt, memory, tgt_mask, src_mask, keep_attentions)
+
+
+class TranslationHead(nn.Module):
+    def __init__(self, config: ModelArugment, pad_idx: int, bos_idx: int, eos_idx: int) -> None:
+        super().__init__()
+        self.config = config
+
+        self.pad_idx = pad_idx
+        self.bos_idx = bos_idx
+        self.eos_idx = eos_idx
+
+        self.transformer = Transformer(**asdict(config))
+        self.lm_head = nn.Linear(config.d_model, config.target_vocab_size, bias=False)
+        self.reset_parameters()
+
+    def forward(
+        self, src: Tensor, tgt: Tensor, src_mask: Tensor = None, tgt_mask: Tensor = None, keep_attentions: bool = False
+    ) -> Tensor:
+        if src_mask is None and tgt_mask is None:
+            src_mask, tgt_mask = self.create_masks(src, tgt, self.pad_idx)
+        output = self.transformer(src, tgt, src_mask, tgt_mask, keep_attentions)
+
+        return self.lm_head(output)
+
+    @torch.no_grad()
+    def translate(
+        self,
+        src: Tensor,
+        src_mask: Tensor = None,
+        max_gen_len: int = 60,
+        num_beams: int = 3,
+        keep_attentions: bool = False,
+        generation_mode: str = "greedy_search",
+    ):
+        if src_mask is None:
+            src_mask = self.create_masks(src, pad_idx=self.pad_idx)[0]
+        generation_mode = generation_mode.lower()
+        if generation_mode == "greedy_search":
+            return self._greedy_search(src, src_mask, max_gen_len, keep_attentions)
+        else:
+            return self._beam_search(src, src_mask, max_gen_len, num_beams, keep_attentions)
