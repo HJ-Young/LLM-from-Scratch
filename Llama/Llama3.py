@@ -50,7 +50,7 @@ token_embeddings_unnormalized = embedding_layer(tokens).to(torch.bfloat16)
 
 
 def rms_norm(x, norm_w):
-    return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + norm_eps) * norm_w
+    return x * torch.rsqrt(x.pow(2).mean(-1, keepdims=True) + norm_eps) * norm_w
 
 
 token_embeddings = rms_norm(token_embeddings_unnormalized, model["layers.0.attention_norm.weight"])

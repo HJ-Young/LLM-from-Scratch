@@ -9,7 +9,7 @@ import json
 
 
 def RMS_Norm(x, norm_w, eps=1e-5):
-    return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps) * norm_w
+    return x * torch.rsqrt(x.pow(2).mean(-1, keepdims=True) + eps) * norm_w
 
 
 def SwiGLU(x, beta=1.0):
@@ -118,7 +118,7 @@ def Llama3(prompt, model_path="Meta-Llama-3-8B/"):
     norm_w = model["norm.weight"]
     output = RMS_Norm(X, norm_w)
     output_w = model["output_weight"]
-    logits = torch.matmal(output[-1], output_w)
+    logits = torch.matmul(output[-1], output_w)
     next_token = torch.argmax(logits)
     return tokenizer.decode(next_token)
 

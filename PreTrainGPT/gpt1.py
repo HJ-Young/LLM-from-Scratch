@@ -8,8 +8,4 @@ class GeLU(nn.Module):
         super(GeLU, self).__init__()
 
     def forward(self, X):
-        return 0.5 * X * (1 + torch.tanh((torch.sqrt(2) / math.pi) * (x + 0.044714 * x**3)))
-
-
-wte = nn.Embedding(vocab_size, num_hiddens)
-wpe = nn.Embedding(max_len, num_hiddens)
+        return 0.5 * X * (1 + torch.tanh((torch.sqrt(2) / math.pi) * (X + 0.044714 * X**3)))
