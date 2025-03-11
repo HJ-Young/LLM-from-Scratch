@@ -78,7 +78,14 @@ class LayerNorm(nn.Module):
         X = X - X.mean(dim=-1, keepdims=True)
         X = X / (torch.sqrt(X.pow(2).mean(dim=-1, keepdims=True)) + self.eps)
         return self.gamma * X + self.beta
-    
+
 
 class PositionWiseFFN(nn.Module):
-    def __init__(self, ffn_n_input, ffn_n_hiddens, ffn_n_output, )
+    def __init__(self, ffn_n_input, ffn_n_hiddens, dropout):
+        super(PositionWiseFFN, self).__init__()
+        self.ffn1 = nn.Linear(ffn_n_input, ffn_n_hiddens)
+        self.ffn2 = nn.Linear(ffn_n_hiddens, ffn_n_input)
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, X):
+        return self.ffn2(nn.functional.softmax(self.dropout(self.ffn1(X))))
