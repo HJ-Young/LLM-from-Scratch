@@ -1,6 +1,8 @@
 from collections import defaultdict
 import jieba
 from typing import Tuple
+import pickle
+from functools import lru_cache
 
 
 class BPETokenizer:
@@ -89,7 +91,7 @@ class BPETokenizer:
             self._add_token(best_pair[0] + best_pair[1])
         return merges
 
-    def train(self, corpus, vocab_size):
+    def _train(self, corpus, vocab_size):
         self._learn_vocab(corpus)
 
         splits = {word: [c for c in word] for word in self.token_freqs.keys()}
@@ -152,3 +154,35 @@ class BPETokenizer:
     def decode(self, idxs):
         tokens = self._convert_idxs_to_tokens(idxs)
         return self.clean_up_tokenization("".join(tokens))
+
+    @classmethod
+    def train(cls, corpus, save_path: str = "", vocab_size: int = 20000) -> "BPETokenizer":
+        tokenizer = cls()
+        tokenizer._train(corpus, vocab_size)
+        tokenizer.save_dir(save_path)
+
+        return tokenizer.tokenizer
+
+    def save_model(self, file_name: str) -> None:
+        with open(file_name, "wb") as f:
+            model = {
+                "word_freqs": self.word_freqs,
+                "merges": self.merges,
+                "token_to_id": self.token_to_id,
+                "id_to_token": self.id_to_token,
+            }
+            pickle.dump(model, f)
+
+        with open(f"{file_name}.vocab", "w", encoding="utf-8") as f:
+            f.write("\n".join(self.token_to_id.keys()))
+
+    @classmethod
+    def load_model(cls, file_name: str) -> "BPETokenizer":
+        bpe = cls()
+        with open(file_name, "rb") as file:
+            model = pickle.load(file)
+            bpe.word_freqs = model["word_freqs"]
+            bpe.merges = model["merges"]
+            bpe.token_to_id = model["token_to_id"]
+            bpe.id_to_token = model["id_to_token"]
+        return bpe

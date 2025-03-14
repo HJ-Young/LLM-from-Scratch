@@ -185,6 +185,7 @@ class Decoder(nn.Module):
 
 
 def make_tgt_mask(tgt, pad_idx: int = 0):
+    # tgt (batch_size * n_heads, seq_len, n_hiddens)
     seq_len = tgt.size()[-1]
     tgt_mask = (tgt != pad_idx).unsqueeze(1).unsqueeze(2)
     subseq_mask = torch.tril(torch.ones((seq_len, seq_len))).bool()

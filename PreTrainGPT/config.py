@@ -6,8 +6,8 @@ from typing import Tuple
 @dataclass
 class TrainArugment:
 
-    dataset_path: str = f"{os.path.dirname(__file__)}/data/wmt"
-    save_dir = f"{os.path.dirname(__file__)}/model_storage"
+    dataset_path: str = f"{os.path.dirname(__file__)}/data/zh-en"
+    save_dir = f"{os.path.dirname(__file__)}/storage"
 
     src_tokenizer_file: str = f"{save_dir}/source.model"
     tgt_tokenizer_path: str = f"{save_dir}/target.model"
