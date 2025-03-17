@@ -6,12 +6,13 @@ from typing import Tuple
 @dataclass
 class TrainArugment:
 
-    dataset_path: str = f"{os.path.dirname(__file__)}/data/zh-en"
-    save_dir = f"{os.path.dirname(__file__)}/storage"
+    dataset_path: str = f"{os.path.dirname(__file__)}/data"
+    tokenizer_save_dir = f"{os.path.dirname(__file__)}/tokenizer"
+    model_save_path = f"{os.path.dirname(__file__)}/model"
 
-    src_tokenizer_file: str = f"{save_dir}/source.model"
-    tgt_tokenizer_path: str = f"{save_dir}/target.model"
-    model_save_path: str = f"{save_dir}/best_transformer.pt"
+    src_tokenizer_file: str = f"{tokenizer_save_dir}/source.model"
+    tgt_tokenizer_path: str = f"{tokenizer_save_dir}/target.model"
+    model_save_path: str = f"{model_save_path}/best_transformer.pt"
 
     dataframe_file: str = "dataframe.{}.pkl"
     use_dataframe_cache: bool = True
@@ -47,8 +48,8 @@ class ModelArugment:
     d_ff: int = d_model * 4  # dimension of feed-forward network
     dropout: float = 0.1  # dropout ratio in the whole network
     max_positions: int = 5000  # supported max length of the sequence in positional encoding
-    source_vocab_size: int = 32000
-    target_vocab_size: int = 32000
+    source_vocab_size: int = 64000
+    target_vocab_size: int = 64000
     attention_bias: bool = False
     pad_idx: int = 0
 
