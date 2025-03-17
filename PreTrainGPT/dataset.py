@@ -23,7 +23,7 @@ class TranslationDataset:
 
     def __getitem__(self, idx:int) -> Turple[list[int], list[int], list[str], list[str]]:
         row = self.ds[idx]
-        return (row.source_indices, row.target_indices, row.source, row.target)
+        return (row["source_indices"], row["target_indices"], row["source"], row["target"])
 
     def __len__(self) -> int:
         return len(self.ds)
@@ -36,3 +36,12 @@ class TranslationDataset:
 
         source_indices = [torch.LongTensor(indices) for indices in source_indices]
         target_indices = [torch.LongTensor(indices) for indices in target_indices]
+        source = pad_sequence(source_indices, padding_value=self.pad_idx, batch_first=True)
+        target = pad_sequence(target_indices, padding_value=self.pad_idx, batch_first=True)
+
+        labels = target[:, 1:]
+        target = target[:, :-1]
+        
+        num_tokens = (labels != self.pad_idx).data.sum()
+
+        return Batch(source, target, labels, num_tokens, source_text, target_text)
