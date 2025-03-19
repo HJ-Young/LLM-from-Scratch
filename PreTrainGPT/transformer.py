@@ -104,6 +104,7 @@ class PositionWiseFFN(nn.Module):
 
 class EncoderBlock(nn.Module):
     def __init__(self, n_hiddens: int, n_heads: int, ffn_n_hiddens: int, dropout: float, bias:bool=False, pre_ln=False):
+        super().__init__()
         self.attn = MHA(n_hiddens, n_heads, dropout, bias)
         self.attn_ln = LayerNorm(n_hiddens)
 
@@ -149,6 +150,7 @@ def make_mask(src: Tensor, pad_idx: int = 0):
 
 class DecoderBlock(nn.Module):
     def __init__(self, n_hiddens: int, n_heads: int, ffn_n_hiddens: int, dropout: float, bias: bool=False, pre_ln=False):
+        super().__init__()
         self.masked_attn = MHA(n_hiddens, n_heads, dropout, bias)
         self.masked_attn_ln = LayerNorm(n_hiddens)
 

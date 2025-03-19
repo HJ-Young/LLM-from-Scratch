@@ -9,7 +9,7 @@ from config import train_args, model_args
 from transformer import TranslationHead
 from dataset import TranslationDataset
 from tokenizers import Tokenizer
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from tokenizers.processors import TemplateProcessing
 
 import sacrebleu
@@ -179,9 +179,9 @@ if __name__ == "__main__":
 
     if os.path.exists(train_dataframe_path) and train_args.use_dataframe_cache:
         train_df, test_df, valid_df = (
-            load_dataset(train_dataframe_path),
-            load_dataset(test_dataframe_path),
-            load_dataset(valid_dataframe_path),
+            load_from_disk(train_dataframe_path),
+            load_from_disk(test_dataframe_path),
+            load_from_disk(valid_dataframe_path),
         )
         print("Loads cached dataframes.")
     
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     )
 
 
-    best_score = 0.0
+    best_score = float("inf")
 
     print(f"begin train with arguments: {train_args}")
 
@@ -299,9 +299,11 @@ if __name__ == "__main__":
                 print(f"Save model with best valid_loss :{valid_loss:.2f}")
 
                 torch.save(model.state_dict(), train_args.model_save_path)
+            else:
+                print(f"Now score is {best_score}")
 
 
-    model.load_state_dict(torch.load(train_args.model_save_path))
+    model.load_state_dict(torch.load(train_args.model_save_path, weights_only=True))
     test_loss = evaluate(model, test_dataloader, valid_criterion, device)
     test_bleu_score = calculate_bleu(
         model,

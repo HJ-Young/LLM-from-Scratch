@@ -27,7 +27,7 @@ class TrainArugment:
     label_smoothing: float = 0
     warmup_steps: int = 4000
     warmup_factor: float = 0.5
-    only_test: bool = True
+    only_test: bool = False
     max_gen_len: int = 60
     generation_mode: str = "beam_search"
     num_beams: int = 3

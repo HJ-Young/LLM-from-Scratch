@@ -23,7 +23,7 @@ class TranslationDataset:
 
     def __getitem__(self, idx:int) -> Tuple[list[int], list[int], list[str], list[str]]:
         row = self.ds[idx]
-        return (row["source_indices"], row["target_indices"], row["en"], row["zh"])
+        return (row["source_indices"], row["target_indices"], row["source"], row["target"])
 
     def __len__(self) -> int:
         return len(self.ds)

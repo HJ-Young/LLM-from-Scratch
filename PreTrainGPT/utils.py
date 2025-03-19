@@ -31,19 +31,16 @@ class WarmUpScheduler(_LRScheduler):
         dim: int,
         factor: float = 1.0,
         last_epoch: int = -1,
-        verbose: bool = False,
     ) -> None:
-        super(WarmUpScheduler, self).__init__(optimizer, last_epoch, verbose)
         self.factor = factor
         self.n_params = len(optimizer.param_groups)
         self.warmup_steps = warmup_steps
         self.dim = dim
+        super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> list[float]:
         lr = (
-            self.factor
-            * self.factor ** (-0.5)
-            * min(self._step_count ** (-0.5), self._step_count * self.warmup_steps ** (-1.5))
+            self.factor * (self.factor ** (-0.5)) * min(self._step_count ** (-0.5), self._step_count * self.warmup_steps ** (-1.5))
         )
         return [lr] * self.n_params
 
