@@ -14,7 +14,7 @@ class TrainArugment:
     tgt_tokenizer_path: str = f"{tokenizer_save_dir}/target.model"
     model_save_path: str = f"{model_save_path}/best_transformer.pt"
 
-    dataframe_file: str = "dataframe.{}.pkl"
+    dataframe_file: str = "dataframe.{}.txt"
     use_dataframe_cache: bool = True
     cuda: bool = True
     num_epochs: int = 40
@@ -48,8 +48,8 @@ class ModelArugment:
     d_ff: int = d_model * 4  # dimension of feed-forward network
     dropout: float = 0.1  # dropout ratio in the whole network
     max_positions: int = 5000  # supported max length of the sequence in positional encoding
-    source_vocab_size: int = 64000
-    target_vocab_size: int = 64000
+    source_vocab_size: int = 32000
+    target_vocab_size: int = 32000
     attention_bias: bool = False
     pad_idx: int = 0
 

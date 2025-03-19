@@ -2,7 +2,7 @@ from datasets import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import torch
 from torch import Tensor, LongTensor
-from typing import Turple
+from typing import Tuple
 from torch.utils.data import DataLoader
 from dataclasses import dataclass
 
@@ -21,14 +21,14 @@ class TranslationDataset:
         self.ds = ds
         self.pad_idx = pad_idx
 
-    def __getitem__(self, idx:int) -> Turple[list[int], list[int], list[str], list[str]]:
+    def __getitem__(self, idx:int) -> Tuple[list[int], list[int], list[str], list[str]]:
         row = self.ds[idx]
-        return (row["source_indices"], row["target_indices"], row["source"], row["target"])
+        return (row["source_indices"], row["target_indices"], row["en"], row["zh"])
 
     def __len__(self) -> int:
         return len(self.ds)
     
-    def collect_fn(self, batch: list[Turple[list[int], list[int], list[str], list[str]]]) -> Turple[LongTensor, LongTensor, LongTensor]:
+    def collate_fn(self, batch: list[Tuple[list[int], list[int], list[str], list[str]]]) -> Tuple[LongTensor, LongTensor, LongTensor]:
         source_indices = [x[0] for x in batch]
         target_indices = [x[1] for x in batch]
         source_text = [x[2] for x in batch]

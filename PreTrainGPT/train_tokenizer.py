@@ -3,14 +3,15 @@ import os
 from config import train_args, model_args
 from datasets import load_dataset
 from tokenizers import Tokenizer
+from tokenizers.processors import TemplateProcessing
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
 
-train_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="train")["translation"]
-valid_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="validation")["translation"]
-test_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="test")["translation"]
+# train_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="train")["translation"]
+# valid_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="validation")["translation"]
+# test_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="test")["translation"]
 
 
 def get_mt_pairs(datasets):
@@ -32,13 +33,13 @@ def train_bpe(
     vocab_size: int,
     pad_token: str = "[PAD]",
     unk_token: str = "[UNK]",
-    cls_token: str = "[CLS]",
-    sep_token: str = "[SEP]",
+    bos_token: str = "[BOS]",
+    eos_token: str = "[EOS]",
     mask_token: str = "[MASK]",
 ):
 
     tokenizer = Tokenizer(BPE(unk_token=unk_token))
-    trainer = BpeTrainer(vocab_size=vocab_size,special_tokens=[unk_token, cls_token, sep_token, pad_token, mask_token])
+    trainer = BpeTrainer(vocab_size=vocab_size,special_tokens=[pad_token, unk_token, bos_token, eos_token, mask_token])
 
     tokenizer.pre_tokenizer = Whitespace()
     tokenizer.train(input_files, trainer)
@@ -51,16 +52,24 @@ def train_tokenizer(
     src_vocab_size: int,
     tgt_vocab_size: int,
 ) -> None:
-    with ProcessPoolExecutor() as executor:
-        futures = [
-            executor.submit(train_bpe, [src_corpus_path], train_args.src_tokenizer_file, src_vocab_size),
-            executor.submit(train_bpe, [tgt_corpus_path], train_args.tgt_tokenizer_path, tgt_vocab_size),
-        ]
+    # with ProcessPoolExecutor() as executor:
+    #     futures = [
+    #         executor.submit(train_bpe, [src_corpus_path], train_args.src_tokenizer_file, src_vocab_size),
+    #         executor.submit(train_bpe, [tgt_corpus_path], train_args.tgt_tokenizer_path, tgt_vocab_size),
+    #     ]
 
-        for future in futures:
-            future.result()
+    #     for future in futures:
+    #         future.result()
 
     source_tokenizer = Tokenizer.from_file(train_args.src_tokenizer_file)
+    source_tokenizer.post_processor = TemplateProcessing(
+        single="[BOS] $A [EOS]",
+        special_tokens=[
+            ("[BOS]", source_tokenizer.token_to_id("[BOS]")),
+            ("[EOS]", source_tokenizer.token_to_id("[EOS]")),
+        ],
+    )
+    source_tokenizer.enable_padding(pad_id=0, pad_token='[PAD]')
 
     source_text = """
     Tesla is recalling nearly all 2 million of its cars on US roads to limit the use of its 

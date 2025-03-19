@@ -1,23 +1,15 @@
 from torch import Tensor
-import torch
 import torch.nn as nn
 
 import pandas as pd
 
-from collections import UserDict
+from datasets import Dataset
 
 import os
-import json
-from tqdm import tqdm
-import numpy as np
-
 
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim import Optimizer
-
-from zhconv import convert
-import sentencepiece as spm
-import torch.nn.functional as F
+from tokenizers import Tokenizer
 
 
 class LabelSmoothLoss(nn.Module):
@@ -25,7 +17,7 @@ class LabelSmoothLoss(nn.Module):
         super(LabelSmoothLoss, self).__init__()
         self.loss = nn.CrossEntropyLoss(ignore_index=pad_idx, label_smoothing=label_smoothing)
 
-    def forward(self, logits, labels):
+    def forward(self, logits: Tensor, labels:Tensor):
         logits = logits.reshape(-1, logits.shape[-1])
         labels = labels.reshape(-1).long()
         return self.loss(logits, labels)
@@ -59,3 +51,22 @@ class WarmUpScheduler(_LRScheduler):
 def make_dirs(dirpath: str) -> None:
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
+
+
+def build_ds(ds: Dataset, src_tokenizer: Tokenizer, tgt_tokenizer: Tokenizer) -> Dataset:
+
+    def tokenize_function(example):
+        source = example['translation']["en"]
+        target = example['translation']["zh"]
+
+        source_encoding = src_tokenizer.encode(source).ids
+        target_encoding = tgt_tokenizer.encode(target).ids
+        return {
+            'source': source,
+            'target': target,
+            'source_indices': source_encoding,
+            'target_indices': target_encoding
+        }
+
+    ds = ds.map(tokenize_function, remove_columns=ds.column_names)
+    return ds
