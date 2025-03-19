@@ -17,6 +17,8 @@ from utils import build_ds, LabelSmoothLoss, WarmUpScheduler
 
 
 
+from torch.amp import autocast, GradScaler
+
 def train(
     model: nn.Module,
     data_loader: DataLoader,
@@ -30,34 +32,36 @@ def train(
     total_loss = 0.0
     tqdm_iter = tqdm(data_loader)
 
+    scaler = GradScaler()
 
     for batch in tqdm_iter:
         source = batch.source.to(device)
         target = batch.target.to(device)
         labels = batch.labels.to(device)
+        
+        optimizer.zero_grad(set_to_none=True)
 
-        print(source.shape)
-        print(target.shape)
+        with autocast(device_type="cuda:0"):
+            logits = model(source, target)
+            loss = criterion(logits, labels)
 
-        logits = model(source, target)
-
-        loss = criterion(logits, labels)
-        loss.backward()
+        scaler.scale(loss).backward()
 
         if clip:
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
 
-        optimizer.step()
-        scheduler.step()
+        scaler.step(optimizer)
+        scaler.update()
 
-        optimizer.zero_grad(set_to_none=True)
+        scheduler.step()
 
         total_loss += loss.item()
         description = f" TRAIN  loss={loss.item():.6f}, learning rate={scheduler.get_last_lr()[0]:.7f}"
 
-        del loss
-
         tqdm_iter.set_description(description)
+
+        del loss, logits, source, target, labels
 
     avg_loss = total_loss / len(data_loader)
 
