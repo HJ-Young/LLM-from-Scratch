@@ -41,19 +41,15 @@ def train(
         
         optimizer.zero_grad(set_to_none=True)
 
-        with autocast(device_type="cuda:0"):
-            logits = model(source, target)
-            loss = criterion(logits, labels)
+        logits = model(source, target)
+        loss = criterion(logits, labels)
 
-        scaler.scale(loss).backward()
+        loss.backward()
 
         if clip:
-            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
 
-        scaler.step(optimizer)
-        scaler.update()
-
+        optimizer.step()
         scheduler.step()
 
         total_loss += loss.item()
