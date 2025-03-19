@@ -61,15 +61,12 @@ class MHA(nn.Module):
 
     def forward(self, query, key, value, mask, keep_attention=False):
         Q, K, V = self.w_q(query), self.w_k(key), self.w_v(value)
-        print("Q shape is ")
-        print(Q.shape)
-        print(K.shape)
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        Q = Q.reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(0, 2, 1, 3)
-        K = K.reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(0, 2, 3, 1)
-        V = V.reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(0, 2, 1, 3)
+        Q = Q.reshape(batch_size, -1, self.n_heads, self.d_k).permute(0, 2, 1, 3)
+        K = K.reshape(batch_size, -1, self.n_heads, self.d_k).permute(0, 2, 3, 1)
+        V = V.reshape(batch_size, -1, self.n_heads, self.d_k).permute(0, 2, 1, 3)
 
         attn = self._attention(Q, K, V, mask, keep_attention)
         attn = attn.transpose(1, 2)
@@ -140,7 +137,7 @@ class Encoder(nn.Module):
         self.ln = LayerNorm(n_hiddens)
 
     def forward(self, x: Tensor, mask: Tensor, keep_attention: bool=False):
-        for blk in self.blks:
+        for i, blk in enumerate(self.blks):
             x = blk(x, mask, keep_attention)
 
         return self.ln(x)
@@ -192,7 +189,7 @@ class Decoder(nn.Module):
         self.ln = LayerNorm(n_hiddens)
 
     def forward(self, x, enc_output, mask, enc_mask, keep_attention=False):
-        for blk in self.blks:
+        for i, blk in enumerate(self.blks):
             x = blk(x, enc_output, mask, enc_mask, keep_attention)
 
         return self.ln(x)
