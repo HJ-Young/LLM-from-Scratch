@@ -30,10 +30,11 @@ def train(
     total_loss = 0.0
     tqdm_iter = tqdm(data_loader)
 
-    for source, target, labels, _ in tqdm_iter:
-        source = source.to(device)
-        target = target.to(device)
-        labels = labels.to(device)
+
+    for batch in tqdm_iter:
+        source = batch.source.to(device)
+        target = batch.target.to(device)
+        labels = batch.labels.to(device)
 
         logits = model(source, target)
 

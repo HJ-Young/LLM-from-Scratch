@@ -50,7 +50,7 @@ def make_dirs(dirpath: str) -> None:
         os.makedirs(dirpath)
 
 
-def build_ds(ds: Dataset, src_tokenizer: Tokenizer, tgt_tokenizer: Tokenizer) -> Dataset:
+def build_ds(ds: Dataset, src_tokenizer: Tokenizer, tgt_tokenizer: Tokenizer, batch_size: int) -> Dataset:
 
     def tokenize_function(example):
         source = example['translation']["en"]

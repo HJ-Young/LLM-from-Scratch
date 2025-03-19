@@ -61,6 +61,9 @@ class MHA(nn.Module):
 
     def forward(self, query, key, value, mask, keep_attention=False):
         Q, K, V = self.w_q(query), self.w_k(key), self.w_v(value)
+        print("Q shape is ")
+        print(Q.shape)
+        print(K.shape)
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 

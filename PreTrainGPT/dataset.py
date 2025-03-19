@@ -21,8 +21,8 @@ class TranslationDataset:
         self.ds = ds
         self.pad_idx = pad_idx
 
-    def __getitem__(self, idx:int) -> Tuple[list[int], list[int], list[str], list[str]]:
-        row = self.ds[idx]
+    def __getitem__(self, index:int) -> Tuple[list[int], list[int], list[str], list[str]]:
+        row = self.ds[index]
         return (row["source_indices"], row["target_indices"], row["source"], row["target"])
 
     def __len__(self) -> int:
@@ -39,8 +39,8 @@ class TranslationDataset:
         source = pad_sequence(source_indices, padding_value=self.pad_idx, batch_first=True)
         target = pad_sequence(target_indices, padding_value=self.pad_idx, batch_first=True)
 
-        labels = target[:, 1:]
-        target = target[:, :-1]
+        labels = target[:, 1:].contiguous()
+        target = target[:, :-1].contiguous()
         
         num_tokens = (labels != self.pad_idx).data.sum()
 

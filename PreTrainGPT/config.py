@@ -14,7 +14,7 @@ class TrainArugment:
     tgt_tokenizer_path: str = f"{tokenizer_save_dir}/target.model"
     model_save_path: str = f"{model_save_path}/best_transformer.pt"
 
-    dataframe_file: str = "dataframe.{}.txt"
+    dataframe_file: str = "dataframe-{}"
     use_dataframe_cache: bool = True
     cuda: bool = True
     num_epochs: int = 40
