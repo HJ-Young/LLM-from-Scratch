@@ -9,9 +9,9 @@ from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
 
-# train_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="train")["translation"]
-# valid_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="validation")["translation"]
-# test_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="test")["translation"]
+train_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="train")["translation"]
+valid_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="validation")["translation"]
+test_dataset = load_dataset("/home/work/LLM-from-Scratch/data", "zh-en", split="test")["translation"]
 
 
 def get_mt_pairs(datasets):
@@ -39,7 +39,9 @@ def train_bpe(
 ):
 
     tokenizer = Tokenizer(BPE(unk_token=unk_token))
-    trainer = BpeTrainer(vocab_size=vocab_size,special_tokens=[pad_token, unk_token, bos_token, eos_token, mask_token])
+    trainer = BpeTrainer(
+        vocab_size=vocab_size, special_tokens=[pad_token, unk_token, bos_token, eos_token, mask_token]
+    )
 
     tokenizer.pre_tokenizer = Whitespace()
     tokenizer.train(input_files, trainer)
@@ -52,14 +54,14 @@ def train_tokenizer(
     src_vocab_size: int,
     tgt_vocab_size: int,
 ) -> None:
-    # with ProcessPoolExecutor() as executor:
-    #     futures = [
-    #         executor.submit(train_bpe, [src_corpus_path], train_args.src_tokenizer_file, src_vocab_size),
-    #         executor.submit(train_bpe, [tgt_corpus_path], train_args.tgt_tokenizer_path, tgt_vocab_size),
-    #     ]
+    with ProcessPoolExecutor() as executor:
+        futures = [
+            executor.submit(train_bpe, [src_corpus_path], train_args.src_tokenizer_file, src_vocab_size),
+            executor.submit(train_bpe, [tgt_corpus_path], train_args.tgt_tokenizer_path, tgt_vocab_size),
+        ]
 
-    #     for future in futures:
-    #         future.result()
+        for future in futures:
+            future.result()
 
     source_tokenizer = Tokenizer.from_file(train_args.src_tokenizer_file)
     source_tokenizer.post_processor = TemplateProcessing(
@@ -69,7 +71,7 @@ def train_tokenizer(
             ("[EOS]", source_tokenizer.token_to_id("[EOS]")),
         ],
     )
-    source_tokenizer.enable_padding(pad_id=0, pad_token='[PAD]')
+    source_tokenizer.enable_padding(pad_id=0, pad_token="[PAD]")
 
     source_text = """
     Tesla is recalling nearly all 2 million of its cars on US roads to limit the use of its 
@@ -100,6 +102,14 @@ def train_tokenizer(
 if __name__ == "__main__":
     os.makedirs(train_args.dataset_path, exist_ok=True)
     os.makedirs(train_args.tokenizer_save_dir, exist_ok=True)
+
+    chinese_sentences, english_sentences = get_mt_pairs([train_dataset, valid_dataset, test_dataset])
+
+    with open(f"{train_args.dataset_path}/corpus.zh", "w", encoding="utf-8") as f:
+        f.writelines(chinese_sentences)
+
+    with open(f"{train_args.dataset_path}/corpus.en", "w", encoding="utf-8") as f:
+        f.writelines(english_sentences)
 
     train_tokenizer(
         f"{train_args.dataset_path}/corpus.en",
